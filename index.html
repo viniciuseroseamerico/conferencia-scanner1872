@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Conferência de Mercadorias</title>
+    <title>Conferência - Com Proteção</title>
     <style>
         body { font-family: Arial; background: #1e3c72; padding: 20px; }
         .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; max-width: 1200px; margin-left: auto; margin-right: auto; }
@@ -24,6 +24,8 @@
         th, td { border: 1px solid #aaa; padding: 8px; text-align: left; vertical-align: top; }
         th { background: #1e3c72; color: white; }
         .resumo-nota { background: #e0e0e0; padding: 10px; margin: 10px 0; border-radius: 5px; font-weight: bold; }
+        .btn-salvar { background: #48bb78; }
+        .btn-salvar:hover { background: #38a169; }
     </style>
 </head>
 <body>
@@ -51,6 +53,9 @@
     </div>
     <div class="card"><div id="resumoDiv"></div></div>
     <div class="card">
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <button id="salvarProgressoBtn" class="btn-salvar">💾 SALVAR PROGRESSO</button>
+        </div>
         <div style="background: #f0f4f8; padding: 10px; text-align: center; border-radius: 5px;">
             🔍 Scanner automático - escaneie o código EAN
         </div>
@@ -75,6 +80,48 @@ let dados = { notas: [] };
 let ultimoCodigo = '';
 let processando = false;
 
+// Função para salvar progresso
+function salvarProgresso() {
+    if (dados.notas.length === 0) {
+        alert('Nenhum dado para salvar!');
+        return;
+    }
+    const progresso = {
+        dados: dados,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('conferenciaProgresso', JSON.stringify(progresso));
+    alert('✅ Progresso salvo com sucesso!');
+}
+
+// Função para restaurar progresso
+function restaurarProgresso() {
+    const salvo = localStorage.getItem('conferenciaProgresso');
+    if (!salvo) return false;
+    try {
+        const progresso = JSON.parse(salvo);
+        const dataSalvo = new Date(progresso.timestamp);
+        if (confirm(`Deseja restaurar a conferência salva em ${dataSalvo.toLocaleString()}?`)) {
+            dados = progresso.dados;
+            
+            // Restaurar campos do formulário
+            document.getElementById('data').value = dados.data || '';
+            document.getElementById('lacre').value = dados.lacre || '';
+            document.getElementById('lojaNum').value = dados.lojaNum || '';
+            document.getElementById('lojaNome').value = dados.lojaNome || '';
+            document.getElementById('operador').value = dados.operador || '';
+            document.getElementById('placa').value = dados.placa || '';
+            
+            document.querySelector('.card').style.display = 'none';
+            document.getElementById('conferenciaArea').style.display = 'block';
+            atualizarTudo();
+            document.getElementById('statusMsg').innerHTML = '<div class="ok">✅ Progresso restaurado! ' + dados.notas.length + ' nota(s) carregadas.</div>';
+            return true;
+        }
+    } catch(e) { console.error('Erro ao restaurar:', e); }
+    return false;
+}
+
 document.getElementById('iniciarBtn').onclick = function() {
     let data = document.getElementById('data').value;
     let lacre = document.getElementById('lacre').value;
@@ -89,6 +136,7 @@ document.getElementById('iniciarBtn').onclick = function() {
     dados = { data, lacre, lojaNum, lojaNome, operador, placa: placa || 'N/A', notas: [] };
     document.querySelector('.card').style.display = 'none';
     document.getElementById('conferenciaArea').style.display = 'block';
+    salvarProgresso();
 };
 
 function extrairDadosExcel(data, fileName) {
@@ -100,11 +148,9 @@ function extrairDadosExcel(data, fileName) {
     let itens = [];
     let eansMap = new Map();
     
-    // Extrai NFe da linha 0, coluna 3
     if (linhas[0] && linhas[0][3]) nfe = String(linhas[0][3]).trim();
     if (!nfe) nfe = 'NFE_' + Date.now();
     
-    // Processa os produtos a partir da linha 1
     for (let i = 1; i < linhas.length; i++) {
         let linha = linhas[i];
         if (!linha || linha.length < 8) continue;
@@ -113,14 +159,12 @@ function extrairDadosExcel(data, fileName) {
         let descricao = linha[1] ? String(linha[1]).trim() : '';
         let ean = linha[3] ? String(linha[3]).trim() : '';
         
-        // QUANTIDADE - Coluna 8 (índice 7)
         let qtd = 0;
         if (linha[7] !== undefined && linha[7] !== null) {
             let qtdStr = String(linha[7]).replace('.', '').replace(',', '.').trim();
             qtd = parseFloat(qtdStr) || 0;
         }
         
-        // VALOR TOTAL - Coluna 11 (índice 11)
         let valorTotal = 0;
         if (linha[11] !== undefined && linha[11] !== null) {
             let valorStr = String(linha[11]).replace('.', '').replace(',', '.').trim();
@@ -177,6 +221,7 @@ dropArea.ondrop = async (e) => {
     dados.notas = notas;
     document.getElementById('statusMsg').innerHTML = '<div class="ok">✅ ' + notas.length + ' nota(s) carregadas!</div>';
     atualizarTudo();
+    salvarProgresso();
 };
 
 function atualizarTudo() {
@@ -243,6 +288,7 @@ function processarEAN(cod) {
                 document.getElementById('scanResultDiv').innerHTML = `<div style="background:${cor}; color:white; padding:10px; border-radius:5px;">📦 ${item.desc}<br>📊 ${item.conf}/${item.qtd} - ${msg}</div>`;
                 setTimeout(() => document.getElementById('scanResultDiv').innerHTML = '', 2000);
                 atualizarTudo();
+                salvarProgresso(); // Salva após cada escaneamento!
                 break;
             }
         }
@@ -324,7 +370,7 @@ document.getElementById('relatorioBtn').onclick = function() {
                             <td style="text-align:center">${div.qtdConf}</td>
                             <td style="text-align:center; color:${cor}; font-weight:bold">${Math.abs(div.diff)}</td>
                             <td style="text-align:center; color:${cor}; font-weight:bold">${div.tipo}</td>
-                            <td style="text-align:center">R$ ${div.prejuizo.toFixed(2)}</td>
+                            <td style="text-align:center">R$ ${div.prejuizo.toFixed(2)}</td
                         </tr>`;
             }
             html += `</tbody></table>`;
@@ -351,7 +397,24 @@ document.getElementById('relatorioBtn').onclick = function() {
     win.document.close();
 };
 
-document.getElementById('encerrarBtn').onclick = () => { if(confirm('Encerrar carga?')) location.reload(); };
+document.getElementById('salvarProgressoBtn').onclick = function() { salvarProgresso(); };
+document.getElementById('encerrarBtn').onclick = function() { 
+    if (confirm('⚠️ ENCERRAR CARGA? Todos os dados serão apagados!')) {
+        localStorage.removeItem('conferenciaProgresso');
+        location.reload();
+    }
+};
+
+// Verificar se há progresso salvo ao carregar
+window.onload = function() {
+    if (localStorage.getItem('conferenciaProgresso')) {
+        if (confirm('🔄 Há uma conferência em andamento. Deseja restaurar?')) {
+            restaurarProgresso();
+        } else {
+            localStorage.removeItem('conferenciaProgresso');
+        }
+    }
+};
 </script>
 </body>
 </html>
