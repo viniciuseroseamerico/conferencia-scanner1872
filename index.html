@@ -157,18 +157,18 @@ function extrairDadosExcel(data, fileName) {
     
     // Procurar NFe na primeira linha, coluna 4 (índice 3)
     if (linhas.length > 0 && linhas[0] && linhas[0].length > 3) {
-        let primeiraLinha = linhas[0];
-        let nfeCampo = primeiraLinha[3];
-        
-        // CONVERTE PARA STRING ANTES DE USAR match
-        if (nfeCampo !== undefined && nfeCampo !== null) {
-            let nfeStr = String(nfeCampo);
-            let match = nfeStr.match(/\d{6,9}/);
-            if (match && match[0]) {
-                nfe = match[0];
-            }
+    let primeiraLinha = linhas[0];
+    let nfeCampo = primeiraLinha[3];
+    
+    // CONVERTE PARA STRING ANTES DE USAR match
+    if (nfeCampo !== undefined && nfeCampo !== null) {
+        let nfeStr = String(nfeCampo);
+        let match = nfeStr.match(/\d{6,9}/);
+        if (match && match[0]) {
+            nfe = match[0];
         }
     }
+}
     
     // Se não encontrou, procurar em outras linhas
     if (!nfe) {
