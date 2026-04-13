@@ -155,30 +155,32 @@ function extrairDadosExcel(data, fileName) {
     let eansEncontrados = new Map();
     let totalValorNota = 0;
     
-    // Procurar NFe na primeira linha, coluna 4 (índice 3) - CORRIGIDO
+    // Procurar NFe na primeira linha, coluna 4 (índice 3)
     if (linhas.length > 0 && linhas[0] && linhas[0].length > 3) {
         let primeiraLinha = linhas[0];
         let nfeCampo = primeiraLinha[3];
         
-        // Garantir que nfeCampo é string
+        // CONVERTE PARA STRING ANTES DE USAR match
         if (nfeCampo !== undefined && nfeCampo !== null) {
             let nfeStr = String(nfeCampo);
             let match = nfeStr.match(/\d{6,9}/);
-            if (match) nfe = match[0];
+            if (match && match[0]) {
+                nfe = match[0];
+            }
         }
     }
     
-    // Se não encontrou, tentar outras linhas
+    // Se não encontrou, procurar em outras linhas
     if (!nfe) {
-        for (let i = 0; i < Math.min(10, linhas.length); i++) {
+        for (let i = 0; i < Math.min(15, linhas.length); i++) {
             let linha = linhas[i];
-            if (linha && linha.length > 0) {
+            if (linha && linha.length) {
                 for (let j = 0; j < linha.length; j++) {
                     let valor = linha[j];
                     if (valor !== undefined && valor !== null) {
                         let valorStr = String(valor);
                         let match = valorStr.match(/\b\d{6,9}\b/);
-                        if (match) {
+                        if (match && match[0]) {
                             nfe = match[0];
                             break;
                         }
@@ -189,24 +191,32 @@ function extrairDadosExcel(data, fileName) {
         }
     }
     
-    if (!nfe) nfe = fileName.replace(/\.(xls|xlsx)$/i, '').substring(0, 15);
+    // Se ainda não encontrou, usar nome do arquivo
+    if (!nfe) {
+        nfe = fileName.replace(/\.(xls|xlsx)$/i, '').substring(0, 15);
+    }
     
+    console.log('NFe encontrada:', nfe);
+    
+    // Processar linhas de produtos (a partir da linha 2)
     for (let i = 2; i < linhas.length; i++) {
         let linha = linhas[i];
         if (!linha || linha.length < 12) continue;
         
-        let codigo = String(linha[0] || '').trim();
-        let descricao = String(linha[1] || '').trim();
-        let eanRaw = String(linha[2] || '').trim();
+        let codigo = linha[0] ? String(linha[0]).trim() : '';
+        let descricao = linha[1] ? String(linha[1]).trim() : '';
+        let eanRaw = linha[2] ? String(linha[2]).trim() : '';
         let ean = extrairEAN(eanRaw);
         let qtd = 0;
         let custo = 0;
         
+        // Quantidade - coluna 8 (índice 7)
         if (linha[7] !== undefined && linha[7] !== null) {
             let qtdStr = String(linha[7]).replace('.', '').replace(',', '.').trim();
             qtd = parseFloat(qtdStr) || 0;
         }
         
+        // Custo - coluna 12 (índice 11)
         if (linha[11] !== undefined && linha[11] !== null) {
             let custoStr = String(linha[11]).replace('.', '').replace(',', '.').trim();
             custo = parseFloat(custoStr) || 0;
@@ -229,47 +239,10 @@ function extrairDadosExcel(data, fileName) {
     }
     
     let itensArray = Array.from(eansEncontrados.values());
+    console.log('Itens extraídos:', itensArray.length);
+    
     return { nfe: nfe, itens: itensArray, fileName: fileName, totalValor: totalValorNota };
 }
-function atualizarTudo() {
-    let totalItens = 0, totalValor = 0;
-    for (let nota of dados.notas) {
-        for (let item of nota.itens) {
-            totalItens += item.qtd;
-            totalValor += item.qtd * item.custo;
-        }
-    }
-    document.getElementById('resumoDiv').innerHTML = '<div class="ok">📊 Notas: ' + dados.notas.length + ' | Itens: ' + totalItens + ' | Valor Total: R$ ' + totalValor.toFixed(2) + '</div>';
-    let notasDiv = document.getElementById('notasDiv');
-    notasDiv.innerHTML = '';
-    let totalGeral = 0, confGeral = 0;
-    for (let nota of dados.notas) {
-        let total = 0, conf = 0, valorNota = 0;
-        for (let item of nota.itens) {
-            total += item.qtd;
-            conf += Math.min(item.conf, item.qtd);
-            valorNota += item.qtd * item.custo;
-        }
-        totalGeral += total;
-        confGeral += conf;
-        let pct = total > 0 ? (conf / total) * 100 : 0;
-        let eansHtml = '';
-        for (let item of nota.itens) {
-            eansHtml += '<span class="ean-item" onclick="copiarEAN(\'' + item.ean + '\')">' + item.ean + '</span> ';
-        }
-        notasDiv.innerHTML += '<div class="nota-card">' +
-            '<strong>📄 NFe: ' + nota.nfe + '</strong> | Valor: R$ ' + valorNota.toFixed(2) + '<br>' +
-            'Itens: ' + conf + '/' + total + ' (' + pct.toFixed(0) + '%)<br>' +
-            '<div class="progress-bar" style="height:8px;"><div style="background:#48bb78; width:' + pct + '%; height:8px;"></div></div>' +
-            '<div><strong>📋 EANs (clique para copiar):</strong><br>' + eansHtml + '</div>' +
-            '</div>';
-    }
-    let pctGeral = totalGeral > 0 ? (confGeral / totalGeral) * 100 : 0;
-    document.getElementById('progressoBar').style.width = pctGeral + '%';
-    document.getElementById('progressoTexto').innerHTML = pctGeral.toFixed(1) + '% (' + confGeral + '/' + totalGeral + ' itens)';
-    salvarProgresso();
-}
-
 function copiarEAN(ean) {
     document.getElementById('scannerInput').value = ean;
     document.getElementById('scannerInput').focus();
