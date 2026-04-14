@@ -114,6 +114,14 @@ document.getElementById('iniciarBtn').onclick = () => {
     document.getElementById('conferenciaArea').style.display = 'block';
 };
 
+function converterNumero(valor) {
+    if (valor === undefined || valor === null) return 0;
+    let str = String(valor).trim();
+    str = str.replace(/\./g, '').replace(',', '.');
+    let num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+}
+
 function extrairDadosExcel(data, fileName) {
     let workbook = XLSX.read(data, { type: 'array' });
     let linhas = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
@@ -123,12 +131,16 @@ function extrairDadosExcel(data, fileName) {
     for (let i = 1; i < linhas.length; i++) {
         let linha = linhas[i];
         if (!linha || linha.length < 8) continue;
+        
         let ean = linha[3] ? String(linha[3]).trim() : '';
-        let qtd = linha[7] ? parseFloat(String(linha[7]).replace(',', '.')) || 0 : 0;
-        let valorTotal = linha[11] ? parseFloat(String(linha[11]).replace(',', '.')) || 0 : 0;
+        let qtd = converterNumero(linha[7]);
+        let valorTotal = converterNumero(linha[11]);
+        
         if (ean && ean !== 'SEM GTIN' && ean.length >= 10 && qtd > 0 && !eansMap.has(ean)) {
             eansMap.set(ean, {
-                ean, qtd, valorTotal,
+                ean: ean,
+                qtd: qtd,
+                valorTotal: valorTotal,
                 custo: qtd > 0 ? valorTotal / qtd : 0,
                 codigo: linha[0] ? String(linha[0]).trim() : '',
                 desc: linha[1] ? String(linha[1]).trim().substring(0, 50) : '',
@@ -203,6 +215,7 @@ function copiarEAN(ean) {
 let scanner = document.getElementById('scannerInput');
 scanner.addEventListener('input', function(e) {
     let cod = e.target.value.trim();
+    // Aceita códigos de 10 a 14 dígitos (EAN)
     if (cod.length >= 10 && cod.length <= 14 && /^\d+$/.test(cod) && cod !== ultimoCodigo && !processando) {
         ultimoCodigo = cod;
         processando = true;
@@ -248,7 +261,16 @@ document.getElementById('relatorioBtn').onclick = () => {
             if (diff !== 0) {
                 let prej = Math.abs(diff) * item.custo;
                 prejuizoNota += prej;
-                divs.push(`<tr><td>${item.codigo}</td><td>${item.desc.substring(0,35)}</td><td>${item.ean}</td><td style="text-align:center">${item.qtd}</td><td style="text-align:center">${item.conf}</td><td style="text-align:center">${Math.abs(diff)}</td><td style="text-align:center">${diff<0?'FALTA':'SOBRA'}</td><td style="text-align:center">R$ ${prej.toFixed(2)}</td></tr>`);
+                divs.push(`<tr>
+                    <td>${item.codigo}</td>
+                    <td>${item.desc.substring(0,35)}</td
+                    <td>${item.ean}</td>
+                    <td style="text-align:center">${item.qtd}</td>
+                    <td style="text-align:center">${item.conf}</td>
+                    <td style="text-align:center">${Math.abs(diff)}</td
+                    <td style="text-align:center">${diff<0?'FALTA':'SOBRA'}</td
+                    <td style="text-align:center">R$ ${prej.toFixed(2)}</td
+                </tr>`);
             }
         }
         if (divs.length) {
