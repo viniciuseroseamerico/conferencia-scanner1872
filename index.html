@@ -269,7 +269,7 @@ function copiarEAN(ean) {
 let scanner = document.getElementById('scannerInput');
 scanner.addEventListener('input', function(e) {
     let codigo = e.target.value.trim();
-    if (codigo.length >= 10 && /^\d+$/.test(codigo) && codigo !== ultimoCodigo && !processando) {
+    if (codigo.length >= 13 && /^\d+$/.test(codigo) && codigo !== ultimoCodigo && !processando) {
         ultimoCodigo = codigo;
         processando = true;
         setTimeout(() => processarEAN(codigo), 50);
